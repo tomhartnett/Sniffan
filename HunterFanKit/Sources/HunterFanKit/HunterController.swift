@@ -14,6 +14,8 @@ import Observation
 ///
 /// The controller accepts one Bluetooth connection at a time, so the official
 /// app must not be connected while this is in use.
+///
+/// Everything that happens is recorded in `log`, including the raw packets.
 @MainActor
 @Observable
 public final class HunterController: NSObject {
@@ -36,6 +38,10 @@ public final class HunterController: NSObject {
 
     public private(set) var state: State = .disconnected
 
+    /// Protocol log, oldest first. Keeps the most recent `maxLogEntries`.
+    public private(set) var log: [HunterLogEntry] = []
+    public var maxLogEntries = 500
+
     static let serviceUUID = CBUUID(string: "F4641530-2F5C-11E3-8B00-0002A5D5C51B")
     static let characteristicUUID = CBUUID(string: "F4641535-2F5C-11E3-8B00-0002A5D5C51B")
 
@@ -44,6 +50,8 @@ public final class HunterController: NSObject {
     @ObservationIgnored private var characteristic: CBCharacteristic?
     @ObservationIgnored private var wantsConnection = false
     @ObservationIgnored private var pendingWrite: CheckedContinuation<Void, Error>?
+    @ObservationIgnored private var lastSent: Data?
+    @ObservationIgnored private var nextLogID = 0
 
     public override init() {
         super.init()
@@ -55,6 +63,7 @@ public final class HunterController: NSObject {
         wantsConnection = true
         guard central.state == .poweredOn, state == .disconnected else { return }
         state = .scanning
+        record(.info, "Scanning for controller")
         central.scanForPeripherals(withServices: [Self.serviceUUID])
     }
 
@@ -63,22 +72,51 @@ public final class HunterController: NSObject {
         central.stopScan()
         if let peripheral {
             central.cancelPeripheralConnection(peripheral)
+            record(.info, "Disconnecting")
         }
         reset(to: central.state == .poweredOn ? .disconnected : .unavailable)
     }
 
     /// Sends a command and waits for the controller to acknowledge it.
     public func send(_ command: HunterCommand) async throws {
-        guard state == .ready else { throw ControllerError.notReady }
-        try await write(HunterPacket.packet(for: command))
+        guard state == .ready else {
+            record(.error, "\(command.rawValue): not connected")
+            throw ControllerError.notReady
+        }
+        try await write(HunterPacket.packet(for: command), label: command.rawValue)
     }
 
-    private func write(_ data: Data) async throws {
+    public func clearLog() {
+        log.removeAll()
+    }
+
+    private func write(_ data: Data, label: String) async throws {
         guard let peripheral, let characteristic else { throw ControllerError.notReady }
-        guard pendingWrite == nil else { throw ControllerError.busy }
-        try await withCheckedThrowingContinuation { continuation in
-            pendingWrite = continuation
-            peripheral.writeValue(data, for: characteristic, type: .withResponse)
+        guard pendingWrite == nil else {
+            record(.error, "\(label): busy with another write")
+            throw ControllerError.busy
+        }
+        record(.sent, label, data)
+        lastSent = data
+        let start = Date()
+        do {
+            try await withCheckedThrowingContinuation { continuation in
+                pendingWrite = continuation
+                peripheral.writeValue(data, for: characteristic, type: .withResponse)
+            }
+            let milliseconds = Int(Date().timeIntervalSince(start) * 1000)
+            record(.acknowledged, "\(label) acknowledged in \(milliseconds) ms")
+        } catch {
+            record(.error, "\(label) failed: \(error)")
+            throw error
+        }
+    }
+
+    private func record(_ kind: HunterLogEntry.Kind, _ message: String, _ data: Data? = nil) {
+        log.append(HunterLogEntry(id: nextLogID, date: Date(), kind: kind, message: message, data: data))
+        nextLogID += 1
+        if log.count > maxLogEntries {
+            log.removeFirst(log.count - maxLogEntries)
         }
     }
 
@@ -99,8 +137,9 @@ public final class HunterController: NSObject {
     private func handshake() {
         Task {
             do {
-                try await write(HunterPacket.helloPacket())
+                try await write(HunterPacket.helloPacket(), label: "hello")
                 state = .ready
+                record(.info, "Ready")
             } catch {
                 disconnect()
             }
@@ -116,6 +155,7 @@ extension HunterController: CBCentralManagerDelegate {
                 if wantsConnection { connect() }
             } else {
                 reset(to: .unavailable)
+                record(.error, "Bluetooth unavailable (state \(central.state.rawValue))")
             }
         }
     }
@@ -132,12 +172,14 @@ extension HunterController: CBCentralManagerDelegate {
             self.peripheral = peripheral
             peripheral.delegate = self
             state = .connecting
+            record(.info, "Found \(peripheral.name ?? "unnamed device") (RSSI \(RSSI) dBm), connecting")
             central.connect(peripheral)
         }
     }
 
     nonisolated public func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
         MainActor.assumeIsolated {
+            record(.info, "Connected, discovering services")
             peripheral.discoverServices([Self.serviceUUID])
         }
     }
@@ -149,6 +191,7 @@ extension HunterController: CBCentralManagerDelegate {
     ) {
         MainActor.assumeIsolated {
             reset(to: .disconnected)
+            record(.error, "Failed to connect: \(error?.localizedDescription ?? "unknown error")")
         }
     }
 
@@ -159,6 +202,11 @@ extension HunterController: CBCentralManagerDelegate {
     ) {
         MainActor.assumeIsolated {
             reset(to: .disconnected)
+            if let error {
+                record(.error, "Disconnected: \(error.localizedDescription)")
+            } else {
+                record(.info, "Disconnected")
+            }
         }
     }
 }
@@ -167,6 +215,7 @@ extension HunterController: CBPeripheralDelegate {
     nonisolated public func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
         MainActor.assumeIsolated {
             guard let service = peripheral.services?.first(where: { $0.uuid == Self.serviceUUID }) else {
+                record(.error, "Controller service not found")
                 disconnect()
                 return
             }
@@ -181,6 +230,7 @@ extension HunterController: CBPeripheralDelegate {
     ) {
         MainActor.assumeIsolated {
             guard let characteristic = service.characteristics?.first(where: { $0.uuid == Self.characteristicUUID }) else {
+                record(.error, "Command characteristic not found")
                 disconnect()
                 return
             }
@@ -197,10 +247,12 @@ extension HunterController: CBPeripheralDelegate {
         error: Error?
     ) {
         MainActor.assumeIsolated {
-            if error == nil {
-                handshake()
-            } else {
+            if let error {
+                record(.error, "Enabling indications failed: \(error.localizedDescription)")
                 disconnect()
+            } else {
+                record(.info, "Indications enabled, sending hello")
+                handshake()
             }
         }
     }
@@ -215,6 +267,22 @@ extension HunterController: CBPeripheralDelegate {
                 finishWrite(.failure(ControllerError.writeFailed(error.localizedDescription)))
             } else {
                 finishWrite(.success(()))
+            }
+        }
+    }
+
+    nonisolated public func peripheral(
+        _ peripheral: CBPeripheral,
+        didUpdateValueFor characteristic: CBCharacteristic,
+        error: Error?
+    ) {
+        MainActor.assumeIsolated {
+            guard let value = characteristic.value else { return }
+            // The controller echoes each packet it accepts back as an indication.
+            if value == lastSent {
+                record(.received, "Echo (matches sent packet)", value)
+            } else {
+                record(.received, "Indication", value)
             }
         }
     }
