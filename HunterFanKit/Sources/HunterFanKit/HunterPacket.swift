@@ -21,36 +21,32 @@ public enum HunterCommand: String, CaseIterable, Sendable {
 /// - The controller's replies carry no light or fan state: its 434 MHz link to
 ///   the fan is transmit-only, so it can't know.
 ///
-/// Packets are built from captured templates: we change only the time bytes
-/// and fix up the key. CRC-32 is linear, so the key changes by the CRC of the
-/// plaintext change alone, and we never need to know the full plaintext.
+/// Packets are built from captured templates, restamped offline to 00:00:00.
+/// To set the time we XOR it into the time bytes and fix up the key: CRC-32 is
+/// linear, so the key changes by the CRC of the plaintext change alone, and we
+/// never need to know the full plaintext.
 enum HunterPacket {
-    /// A packet captured from the official app at 08:MM:SS, with the offset of
-    /// its hour byte (minute and second follow it).
+    /// A captured packet whose time reads 00:00:00, with the offset of its
+    /// hour byte (minute and second follow it).
     struct Template {
         let bytes: [UInt8]
         let timeOffset: Int
-        let minute: UInt8
-        let second: UInt8
-        let hour: UInt8 = 8
 
-        init(_ hex: String, timeOffset: Int = 8, minute: UInt8, second: UInt8) {
+        init(_ hex: String, timeOffset: Int = 8) {
             self.bytes = HunterPacket.bytes(hex)
             self.timeOffset = timeOffset
-            self.minute = minute
-            self.second = second
         }
     }
 
     /// Sent once after connecting.
-    static let hello = Template("f5639f63493654d852d524f7b2b646e2d3b46eac", timeOffset: 7, minute: 36, second: 3)
+    static let hello = Template("dcb7939460e258275f0228009b624a15fa60625b", timeOffset: 7)
 
     static let templates: [HunterCommand: Template] = [
-        .light:  Template("039eb7d7bade99858714feb84b5095ad2a52bde3", minute: 36, second: 9),
-        .fan:    Template("687bc90bd30fe759eec587642281eb714383c33f", minute: 36, second: 14),
-        .low:    Template("66aa908ddcdabedfe110c4e22d54b2f74c569ab9", minute: 36, second: 20),
-        .medium: Template("874850be3a397eec07f308d1cbb772c4aab55a8a", minute: 36, second: 24),
-        .high:   Template("c0c2d1877cb0ffd5417a8ae88d3ef3fdec3cdbb3", minute: 36, second: 27),
+        .light:  Template("f1c9af184889814a7d67ef77b9078d62d805a52c"),
+        .fan:    Template("221cd4d99968fa8bac8694b668e6f6a309e4deed"),
+        .low:    Template("d1ecc0fd6b9ceeaf5e7280929a12e287fb10cac9"),
+        .medium: Template("4bcec2b9f6bfecebc35182d60731e0c36633c88d"),
+        .high:   Template("a236d7061e44f9542baa9769efcaf57c8ec8dd32"),
     ]
 
     /// Returns the packet for `command`, stamped with the time of `date`.
@@ -67,9 +63,9 @@ enum HunterPacket {
         let time = calendar.dateComponents([.hour, .minute, .second], from: date)
 
         var delta = [UInt8](repeating: 0, count: 16)
-        delta[template.timeOffset] = template.hour ^ UInt8(time.hour!)
-        delta[template.timeOffset + 1] = template.minute ^ UInt8(time.minute!)
-        delta[template.timeOffset + 2] = template.second ^ UInt8(time.second!)
+        delta[template.timeOffset] = UInt8(time.hour!)
+        delta[template.timeOffset + 1] = UInt8(time.minute!)
+        delta[template.timeOffset + 2] = UInt8(time.second!)
 
         let keyDelta = crc32(delta) ^ crc32([UInt8](repeating: 0, count: 16))
         let key = withUnsafeBytes(of: keyDelta.littleEndian, Array.init)
