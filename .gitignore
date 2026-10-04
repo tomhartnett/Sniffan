@@ -1,0 +1,9 @@
+xcuserdata
+.DS_Store
+
+# SwiftPM build output and Xcode's per-package state
+.build/
+.swiftpm/
+
+# Python virtual environment for hunter_test.py
+.venv/
