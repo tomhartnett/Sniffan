@@ -1,7 +1,7 @@
 """Test controlling the Hunter SIMPLEconnect plug-in controller from a Mac.
 
 Usage:
-    python3 hunter_test.py light           # toggle light (stamped with current time)
+    python3 sniffan_test.py light           # toggle light (stamped with current time)
 
 Commands: light, fan, low, med, high
 
@@ -57,7 +57,7 @@ async def main():
         lambda d, ad: SERVICE.lower() in [u.lower() for u in ad.service_uuids], timeout=15
     )
     if not device:
-        sys.exit("Controller not found (is the Hunter app closed?)")
+        sys.exit("Controller not found (is the official app closed?)")
 
     async with BleakClient(device) as client:
         print(f"Connected to {device.name}")

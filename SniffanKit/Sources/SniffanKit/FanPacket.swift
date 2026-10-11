@@ -1,7 +1,7 @@
 import Foundation
 
 /// A button on the Hunter SIMPLEconnect controller.
-public enum HunterCommand: String, CaseIterable, Sendable {
+public enum FanCommand: String, CaseIterable, Sendable {
     /// Toggles the light on or off.
     case light
     /// Toggles the fan on or off.
@@ -25,7 +25,7 @@ public enum HunterCommand: String, CaseIterable, Sendable {
 /// To set the time we XOR it into the time bytes and fix up the key: CRC-32 is
 /// linear, so the key changes by the CRC of the plaintext change alone, and we
 /// never need to know the full plaintext.
-enum HunterPacket {
+enum FanPacket {
     /// A captured packet whose time reads 00:00:00, with the offset of its
     /// hour byte (minute and second follow it).
     struct Template {
@@ -33,7 +33,7 @@ enum HunterPacket {
         let timeOffset: Int
 
         init(_ hex: String, timeOffset: Int = 8) {
-            self.bytes = HunterPacket.bytes(hex)
+            self.bytes = FanPacket.bytes(hex)
             self.timeOffset = timeOffset
         }
     }
@@ -41,7 +41,7 @@ enum HunterPacket {
     /// Sent once after connecting.
     static let hello = Template("dcb7939460e258275f0228009b624a15fa60625b", timeOffset: 7)
 
-    static let templates: [HunterCommand: Template] = [
+    static let templates: [FanCommand: Template] = [
         .light:  Template("f1c9af184889814a7d67ef77b9078d62d805a52c"),
         .fan:    Template("221cd4d99968fa8bac8694b668e6f6a309e4deed"),
         .low:    Template("d1ecc0fd6b9ceeaf5e7280929a12e287fb10cac9"),
@@ -50,7 +50,7 @@ enum HunterPacket {
     ]
 
     /// Returns the packet for `command`, stamped with the time of `date`.
-    static func packet(for command: HunterCommand, at date: Date = Date(), calendar: Calendar = .current) -> Data {
+    static func packet(for command: FanCommand, at date: Date = Date(), calendar: Calendar = .current) -> Data {
         packet(from: templates[command]!, at: date, calendar: calendar)
     }
 

@@ -1,9 +1,9 @@
-import HunterFanKit
+import SniffanKit
 import SwiftUI
 
 @main
-struct HunterFanApp: App {
-    @State private var controller = HunterController()
+struct SniffanApp: App {
+    @State private var controller = FanController()
 
     var body: some Scene {
         WindowGroup {

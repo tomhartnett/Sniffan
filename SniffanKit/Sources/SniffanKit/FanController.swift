@@ -6,7 +6,7 @@ import Observation
 /// sends it commands.
 ///
 /// ```swift
-/// let controller = HunterController()
+/// let controller = FanController()
 /// controller.connect()
 /// // once controller.state == .ready:
 /// try await controller.send(.light)
@@ -18,7 +18,7 @@ import Observation
 /// Everything that happens is recorded in `log`, including the raw packets.
 @MainActor
 @Observable
-public final class HunterController: NSObject {
+public final class FanController: NSObject {
     public enum State: Equatable, Sendable {
         /// Bluetooth is off, unauthorized or unsupported.
         case unavailable
@@ -39,7 +39,7 @@ public final class HunterController: NSObject {
     public private(set) var state: State = .disconnected
 
     /// Protocol log, oldest first. Keeps the most recent `maxLogEntries`.
-    public private(set) var log: [HunterLogEntry] = []
+    public private(set) var log: [FanLogEntry] = []
     public var maxLogEntries = 500
 
     static let serviceUUID = CBUUID(string: "F4641530-2F5C-11E3-8B00-0002A5D5C51B")
@@ -78,12 +78,12 @@ public final class HunterController: NSObject {
     }
 
     /// Sends a command and waits for the controller to acknowledge it.
-    public func send(_ command: HunterCommand) async throws {
+    public func send(_ command: FanCommand) async throws {
         guard state == .ready else {
             record(.error, "\(command.rawValue): not connected")
             throw ControllerError.notReady
         }
-        try await write(HunterPacket.packet(for: command), label: command.rawValue)
+        try await write(FanPacket.packet(for: command), label: command.rawValue)
     }
 
     public func clearLog() {
@@ -112,8 +112,8 @@ public final class HunterController: NSObject {
         }
     }
 
-    private func record(_ kind: HunterLogEntry.Kind, _ message: String, _ data: Data? = nil) {
-        log.append(HunterLogEntry(id: nextLogID, date: Date(), kind: kind, message: message, data: data))
+    private func record(_ kind: FanLogEntry.Kind, _ message: String, _ data: Data? = nil) {
+        log.append(FanLogEntry(id: nextLogID, date: Date(), kind: kind, message: message, data: data))
         nextLogID += 1
         if log.count > maxLogEntries {
             log.removeFirst(log.count - maxLogEntries)
@@ -137,7 +137,7 @@ public final class HunterController: NSObject {
     private func handshake() {
         Task {
             do {
-                try await write(HunterPacket.helloPacket(), label: "hello")
+                try await write(FanPacket.helloPacket(), label: "hello")
                 state = .ready
                 record(.info, "Ready")
             } catch {
@@ -147,7 +147,7 @@ public final class HunterController: NSObject {
     }
 }
 
-extension HunterController: CBCentralManagerDelegate {
+extension FanController: CBCentralManagerDelegate {
     nonisolated public func centralManagerDidUpdateState(_ central: CBCentralManager) {
         MainActor.assumeIsolated {
             if central.state == .poweredOn {
@@ -211,7 +211,7 @@ extension HunterController: CBCentralManagerDelegate {
     }
 }
 
-extension HunterController: CBPeripheralDelegate {
+extension FanController: CBPeripheralDelegate {
     nonisolated public func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
         MainActor.assumeIsolated {
             guard let service = peripheral.services?.first(where: { $0.uuid == Self.serviceUUID }) else {

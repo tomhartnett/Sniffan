@@ -15,9 +15,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "B493D54A7729C247863837FD"
-               BuildableName = "HunterFan.app"
-               BlueprintName = "HunterFan"
-               ReferencedContainer = "container:HunterFan.xcodeproj">
+               BuildableName = "Sniffan.app"
+               BlueprintName = "Sniffan"
+               ReferencedContainer = "container:Sniffan.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -46,9 +46,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "B493D54A7729C247863837FD"
-            BuildableName = "HunterFan.app"
-            BlueprintName = "HunterFan"
-            ReferencedContainer = "container:HunterFan.xcodeproj">
+            BuildableName = "Sniffan.app"
+            BlueprintName = "Sniffan"
+            ReferencedContainer = "container:Sniffan.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -63,9 +63,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "B493D54A7729C247863837FD"
-            BuildableName = "HunterFan.app"
-            BlueprintName = "HunterFan"
-            ReferencedContainer = "container:HunterFan.xcodeproj">
+            BuildableName = "Sniffan.app"
+            BlueprintName = "Sniffan"
+            ReferencedContainer = "container:Sniffan.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

@@ -1,10 +1,10 @@
-import HunterFanKit
+import SniffanKit
 import SwiftUI
 
 struct ContentView: View {
-    let controller: HunterController
+    let controller: FanController
     @Environment(\.scenePhase) private var scenePhase
-    @State private var status: [HunterCommand: CommandStatus] = [:]
+    @State private var status: [FanCommand: CommandStatus] = [:]
     @AppStorage("showLog") private var showLog = false
 
     enum CommandStatus {
@@ -68,7 +68,7 @@ struct ContentView: View {
         status.values.contains(.sending)
     }
 
-    private func commandButton(_ title: String, _ systemImage: String, _ command: HunterCommand) -> some View {
+    private func commandButton(_ title: String, _ systemImage: String, _ command: FanCommand) -> some View {
         Button {
             send(command)
         } label: {
@@ -97,7 +97,7 @@ struct ContentView: View {
         }
     }
 
-    private func send(_ command: HunterCommand) {
+    private func send(_ command: FanCommand) {
         status[command] = .sending
         Task {
             let result: CommandStatus
@@ -119,7 +119,7 @@ struct ContentView: View {
 }
 
 private struct LogRow: View {
-    let entry: HunterLogEntry
+    let entry: FanLogEntry
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {

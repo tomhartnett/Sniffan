@@ -1,7 +1,7 @@
 import Foundation
 
-/// One line of `HunterController`'s protocol log.
-public struct HunterLogEntry: Identifiable, Sendable {
+/// One line of `FanController`'s protocol log.
+public struct FanLogEntry: Identifiable, Sendable {
     public enum Kind: Sendable {
         /// Connection progress and other events.
         case info
