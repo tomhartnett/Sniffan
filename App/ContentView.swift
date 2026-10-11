@@ -5,6 +5,7 @@ struct ContentView: View {
     let controller: HunterController
     @Environment(\.scenePhase) private var scenePhase
     @State private var status: [HunterCommand: CommandStatus] = [:]
+    @AppStorage("showLog") private var showLog = false
 
     enum CommandStatus {
         case sending, succeeded, failed
@@ -29,16 +30,14 @@ struct ContentView: View {
                 }
 
                 Section {
-                    ForEach(controller.log.reversed()) { entry in
-                        LogRow(entry: entry)
-                    }
-                } header: {
-                    HStack {
-                        Text("Log")
-                        Spacer()
-                        Button("Clear") { controller.clearLog() }
-                            .font(.caption)
+                    DisclosureGroup(isExpanded: $showLog) {
+                        Button("Clear Log", role: .destructive) { controller.clearLog() }
                             .disabled(controller.log.isEmpty)
+                        ForEach(controller.log.reversed()) { entry in
+                            LogRow(entry: entry)
+                        }
+                    } label: {
+                        LabeledContent("Protocol Log", value: "\(controller.log.count) entries")
                     }
                 }
             }
