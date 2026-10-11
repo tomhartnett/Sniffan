@@ -10,6 +10,7 @@
 		0F13AC47C47D45219E60A6F3 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A341C6DF5AF2C1D4D39EA71B /* ContentView.swift */; };
 		6E8D584504ECE17ED406A5F8 /* SniffanApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 709FCE0758F6C283DD741E92 /* SniffanApp.swift */; };
 		A86CBF3894E6BDF21AD4670C /* SniffanKit in Frameworks */ = {isa = PBXBuildFile; productRef = C51EE67F986CF7A1188ACF07 /* SniffanKit */; };
+		E2514CA1307BEA400059E256 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = E2514CA0307BEA400059E256 /* AppIcon.icon */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -29,6 +30,7 @@
 		48A82A92BB7A2FCD5862F3CF /* Sniffan.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Sniffan.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		709FCE0758F6C283DD741E92 /* SniffanApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SniffanApp.swift; sourceTree = "<group>"; };
 		A341C6DF5AF2C1D4D39EA71B /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		E2514CA0307BEA400059E256 /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = AppIcon.icon; sourceTree = "<group>"; };
 		E585404FBC5B1A89357D9D35 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		ECF144BB8E043207D9197457 /* SniffanKit */ = {isa = PBXFileReference; lastKnownFileType = folder; path = SniffanKit; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -48,6 +50,7 @@
 		02C0DE0F4CFBD7BEAB4551B4 /* App */ = {
 			isa = PBXGroup;
 			children = (
+				E2514CA0307BEA400059E256 /* AppIcon.icon */,
 				E585404FBC5B1A89357D9D35 /* Info.plist */,
 				A341C6DF5AF2C1D4D39EA71B /* ContentView.swift */,
 				709FCE0758F6C283DD741E92 /* SniffanApp.swift */,
@@ -142,6 +145,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E2514CA1307BEA400059E256 /* AppIcon.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -223,6 +227,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				DEVELOPMENT_TEAM = 25V97QMNV5;
 				ENABLE_PREVIEWS = YES;
@@ -249,6 +254,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				DEVELOPMENT_TEAM = 25V97QMNV5;
 				ENABLE_PREVIEWS = YES;
