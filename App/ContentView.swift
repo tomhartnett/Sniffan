@@ -1,5 +1,6 @@
 import SniffanKit
 import SwiftUI
+import UIKit
 
 struct ContentView: View {
     let controller: FanController
@@ -15,7 +16,12 @@ struct ContentView: View {
         NavigationStack {
             List {
                 Section {
-                    LabeledContent("Controller", value: statusText)
+                    LabeledContent("Controller") {
+                        HStack {
+                            Text(statusText)
+                            reconnectButton
+                        }
+                    }
                 }
 
                 Section {
@@ -49,7 +55,14 @@ struct ContentView: View {
             if scenePhase == .active {
                 controller.connect()
             } else if scenePhase == .background {
+                // Disconnecting takes a round trip to the controller, so ask
+                // iOS for a few seconds before it suspends the app.
+                let task = UIApplication.shared.beginBackgroundTask()
                 controller.disconnect()
+                Task {
+                    try? await Task.sleep(for: .seconds(3))
+                    UIApplication.shared.endBackgroundTask(task)
+                }
             }
         }
     }
@@ -62,6 +75,28 @@ struct ContentView: View {
         case .connecting: "Connecting…"
         case .ready: "Connected"
         }
+    }
+
+    /// Connects, restarts a stuck connection attempt, or drops and remakes a
+    /// working connection, depending on the state.
+    private var reconnectButton: some View {
+        Button {
+            controller.reconnect()
+        } label: {
+            if #available(iOS 18, *) {
+                Image(systemName: "arrow.trianglehead.2.clockwise.rotate.90")
+                    .symbolEffect(.rotate, options: .speed(2), isActive: isConnecting)
+            } else {
+                Image(systemName: "arrow.clockwise")
+            }
+        }
+        .buttonStyle(.borderless)
+        .disabled(controller.state == .unavailable)
+        .accessibilityLabel("Reconnect")
+    }
+
+    private var isConnecting: Bool {
+        controller.state == .scanning || controller.state == .connecting
     }
 
     private var isSending: Bool {

@@ -52,6 +52,7 @@ public final class FanController: NSObject {
     @ObservationIgnored private var pendingWrite: CheckedContinuation<Void, Error>?
     @ObservationIgnored private var lastSent: Data?
     @ObservationIgnored private var nextLogID = 0
+    @ObservationIgnored private var disconnectTimeout: Task<Void, Never>?
 
     public override init() {
         super.init()
@@ -61,7 +62,8 @@ public final class FanController: NSObject {
     /// Scans for the controller and connects. Watch `state` for `.ready`.
     public func connect() {
         wantsConnection = true
-        guard central.state == .poweredOn, state == .disconnected else { return }
+        // While a disconnect is finishing, connect again once it's done.
+        guard central.state == .poweredOn, state == .disconnected, disconnectTimeout == nil else { return }
         state = .scanning
         record(.info, "Scanning for controller")
         central.scanForPeripherals(withServices: [Self.serviceUUID])
@@ -70,11 +72,45 @@ public final class FanController: NSObject {
     public func disconnect() {
         wantsConnection = false
         central.stopScan()
+        guard disconnectTimeout == nil else { return }
+
+        // Like the official app, turn indications off before dropping the
+        // connection. The controller can get stuck (still advertising, but
+        // refusing connections until it's unplugged) if the link goes away
+        // with indications on.
+        guard let peripheral, let characteristic, characteristic.isNotifying,
+              peripheral.state == .connected else {
+            finishDisconnect()
+            return
+        }
+        record(.info, "Disabling indications")
+        finishWrite(.failure(ControllerError.disconnected))
+        state = .disconnected
+        peripheral.setNotifyValue(false, for: characteristic)
+        disconnectTimeout = Task {
+            try? await Task.sleep(for: .seconds(2))
+            guard !Task.isCancelled else { return }
+            record(.error, "No reply to disabling indications")
+            finishDisconnect()
+        }
+    }
+
+    private func finishDisconnect() {
         if let peripheral {
             central.cancelPeripheralConnection(peripheral)
             record(.info, "Disconnecting")
         }
         reset(to: central.state == .poweredOn ? .disconnected : .unavailable)
+        if wantsConnection {
+            connect()
+        }
+    }
+
+    /// Drops any connection or connection attempt and connects again.
+    public func reconnect() {
+        record(.info, "Reconnecting")
+        disconnect()
+        connect()
     }
 
     /// Sends a command and waits for the controller to acknowledge it.
@@ -127,6 +163,8 @@ public final class FanController: NSObject {
     }
 
     private func reset(to newState: State) {
+        disconnectTimeout?.cancel()
+        disconnectTimeout = nil
         finishWrite(.failure(ControllerError.disconnected))
         peripheral = nil
         characteristic = nil
@@ -190,6 +228,7 @@ extension FanController: CBCentralManagerDelegate {
         error: Error?
     ) {
         MainActor.assumeIsolated {
+            guard peripheral === self.peripheral else { return }
             reset(to: .disconnected)
             record(.error, "Failed to connect: \(error?.localizedDescription ?? "unknown error")")
         }
@@ -201,6 +240,12 @@ extension FanController: CBCentralManagerDelegate {
         error: Error?
     ) {
         MainActor.assumeIsolated {
+            // After disconnect() or reconnect() we've already let go of the
+            // peripheral; don't let its late callback reset a new attempt.
+            guard peripheral === self.peripheral else {
+                record(.info, "Disconnected")
+                return
+            }
             reset(to: .disconnected)
             if let error {
                 record(.error, "Disconnected: \(error.localizedDescription)")
@@ -247,6 +292,13 @@ extension FanController: CBPeripheralDelegate {
         error: Error?
     ) {
         MainActor.assumeIsolated {
+            if disconnectTimeout != nil {
+                if let error {
+                    record(.error, "Disabling indications failed: \(error.localizedDescription)")
+                }
+                finishDisconnect()
+                return
+            }
             if let error {
                 record(.error, "Enabling indications failed: \(error.localizedDescription)")
                 disconnect()
